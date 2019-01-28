@@ -40,7 +40,7 @@ def read_image(img_path, camid="0"):
         try:
             img = cv2.imdecode(np.fromfile(image_path, dtype=np.uint8()), 1)
             box = process_box(box, img.shape[1], img.shape[0])
-            img = img[box[0]:box[2], box[1]:box[3], :]
+            img = img[box[1]:box[3], box[0]:box[2], :]
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             img = cv2.resize(img, dsize=(144, 144))
             if camid:
@@ -64,7 +64,7 @@ class ImageDataset(Dataset):
     def __getitem__(self, index):
         img_path, pid, camid = self.dataset[index]
         img = read_image(img_path)
-        
+
         if self.transform is not None:
             img = self.transform(img)
         
