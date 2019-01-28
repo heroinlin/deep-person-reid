@@ -14,7 +14,7 @@ __all__ = ['resnet50', 'resnet50_fc512']
 model_urls = {
     'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
     'resnet34': 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
-    'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
+    'resnet50': r"F:\models\pytorch\resnet50-19c8e357.pth",
     'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
     'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
 }
@@ -229,7 +229,8 @@ def init_pretrained_weights(model, model_url):
     Initialize model with pretrained weights.
     Layers that don't match with pretrained layers in name or size are kept unchanged.
     """
-    pretrain_dict = model_zoo.load_url(model_url)
+    # pretrain_dict = model_zoo.load_url(model_url)
+    pretrain_dict = torch.load(model_url)
     model_dict = model.state_dict()
     pretrain_dict = {k: v for k, v in pretrain_dict.items() if k in model_dict and model_dict[k].size() == v.size()}
     model_dict.update(pretrain_dict)
