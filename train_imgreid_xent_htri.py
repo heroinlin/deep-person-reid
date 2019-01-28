@@ -65,7 +65,7 @@ def main():
 
     model = nn.DataParallel(model).cuda() if use_gpu else model
 
-    criterion_xent = CrossEntropyLoss(num_classes=dm.num_train_pids+1, use_gpu=use_gpu, label_smooth=args.label_smooth)
+    criterion_xent = CrossEntropyLoss(num_classes=dm.num_train_pids, use_gpu=use_gpu, label_smooth=args.label_smooth)
     criterion_htri = TripletLoss(margin=args.margin)
     optimizer = init_optimizer(model, **optimizer_kwargs(args))
     scheduler = init_lr_scheduler(optimizer, **lr_scheduler_kwargs(args))
