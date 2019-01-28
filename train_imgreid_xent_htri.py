@@ -136,6 +136,7 @@ def main():
 def train(epoch, model, criterion_xent, criterion_htri, optimizer, trainloader, use_gpu, fixbase=False):
     xent_losses = AverageMeter()
     htri_losses = AverageMeter()
+    losses = AverageMeter()
     accs = AverageMeter()
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -174,20 +175,22 @@ def train(epoch, model, criterion_xent, criterion_htri, optimizer, trainloader, 
 
         xent_losses.update(xent_loss.item(), pids.size(0))
         htri_losses.update(htri_loss.item(), pids.size(0))
+        losses.update(loss.item(), pids.size(0))
         accs.update(accuracy(outputs, pids)[0])
 
         if (batch_idx + 1) % args.print_freq == 0:
             print('Epoch: [{0}][{1}/{2}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Xent {xent.val:.4f} ({xent.avg:.4f})\t'
-                  'Htri {htri.val:.4f} ({htri.avg:.4f})\t'
+                  'Data {data_time.val:.4f} ({data_time.avg:.4f})\t'
+                  'xent_Loss {xent_loss.val:.4f} ({xent_loss.avg:.4f})\t'
+                  'htri_Loss {htri_loss.val:.4f} ({htri_loss.avg:.4f})\t'
+                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Acc {acc.val:.2f} ({acc.avg:.2f})\t'.format(
                    epoch + 1, batch_idx + 1, len(trainloader),
                    batch_time=batch_time,
                    data_time=data_time,
-                   xent=xent_losses,
-                   htri=htri_losses,
+                   xent_loss=xent_losses, htri_loss=htri_losses,
+                   loss=losses,
                    acc=accs
             ))
         
@@ -263,3 +266,4 @@ def test(model, queryloader, galleryloader, use_gpu, ranks=[1, 5, 10, 20], retur
 
 if __name__ == '__main__':
     main()
+# python train_imgreid_xent_htri.py --root F:/Database/reid/market1501 -s market1501  -t market1501  --height 144 --width 144 --optim amsgrad --label-smooth --train-sampler RandomIdentitySampler --lr 0.0003 --max-epoch 60 --eval-freq 2 --stepsize 20 40 --train-batch-size 32 --test-batch-size 100 -a resnet50 --save-dir log/resnet50-market-xent_htri --gpu-devices 0
