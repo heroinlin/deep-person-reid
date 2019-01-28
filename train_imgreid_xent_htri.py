@@ -266,4 +266,4 @@ def test(model, queryloader, galleryloader, use_gpu, ranks=[1, 5, 10, 20], retur
 
 if __name__ == '__main__':
     main()
-# python train_imgreid_xent_htri.py --root F:/Database/reid/market1501 -s market1501  -t market1501  --height 144 --width 144 --optim amsgrad --label-smooth --train-sampler RandomIdentitySampler --lr 0.0003 --max-epoch 60 --eval-freq 2 --stepsize 20 40 --train-batch-size 32 --test-batch-size 100 -a resnet50 --save-dir log/resnet50-market-xent_htri --gpu-devices 0
+# python train_imgreid_xent_htri.py --root F:/Database/reid/market1501 -s market1501  -t market1501  --height 144 --width 144 --optim amsgrad --label-smooth --train-sampler RandomIdentitySampler --lr 0.0003 --max-epoch 60 --eval-freq 2 --stepsize 20 40 --num-instances 4 --train-batch-size 32 --test-batch-size 100 -a resnet50 --save-dir log/resnet50-market-xent_htri --gpu-devices 0
