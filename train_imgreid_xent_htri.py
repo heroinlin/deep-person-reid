@@ -55,10 +55,10 @@ def main():
     trainloader, testloader_dict = dm.return_dataloaders()
 
     print("Initializing model: {}".format(args.arch))
-    model = models.init_model(name=args.arch, num_classes=dm.num_train_pids, loss={'xent', 'htri'})
+    model = models.init_model(name=args.arch, num_classes=dm.num_train_pids+1, loss={'xent', 'htri'})
     print("Model size: {:.3f} M".format(count_num_param(model)))
 
-    criterion_xent = CrossEntropyLoss(num_classes=dm.num_train_pids, use_gpu=use_gpu, label_smooth=args.label_smooth)
+    criterion_xent = CrossEntropyLoss(num_classes=dm.num_train_pids+1, use_gpu=use_gpu, label_smooth=args.label_smooth)
     criterion_htri = TripletLoss(margin=args.margin)
     
     optimizer = init_optimizer(model.parameters(), **optimizer_kwargs(args))
@@ -292,4 +292,4 @@ def test(model, queryloader, galleryloader, use_gpu, ranks=[1, 5, 10, 20], retur
 
 if __name__ == '__main__':
     main()
-# python train_imgreid_xent_htri.py --root F:/Database/reid/market1501 -s market1501  -t market1501  --height 144 --width 144 --optim amsgrad --label-smooth --train-sampler RandomIdentitySampler --lr 0.0003 --max-epoch 60 --eval-freq 2 --stepsize 20 40 --num-instances 4 --train-batch-size 32 --test-batch-size 100 -a resnet50 --save-dir log/resnet50-market-xent_htri --gpu-devices 0
+# python train_imgreid_xent_htri.py  -s bus_id  -t bus_id  --height 144 --width 144 --optim amsgrad --label-smooth --train-sampler RandomIdentitySampler --lr 0.0003 --max-epoch 60 --eval-freq 2 --stepsize 20 40 --train-batch-size 32 --test-batch-size 100 -a resnet50 --save-dir log/resnet50-bus_id-xent_htri --gpu-devices 0
