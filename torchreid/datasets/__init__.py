@@ -13,6 +13,7 @@ from .prid450s import PRID450S
 from .ilids import iLIDS
 from .sensereid import SenseReID
 from .prid import PRID
+from .bus_id import BusID
 
 from .mars import Mars
 from .ilidsvid import iLIDSVID
@@ -32,6 +33,7 @@ __imgreid_factory = {
     'ilids': iLIDS,
     'sensereid': SenseReID,
     'prid': PRID,
+    'bus_id': BusID,
 }
 
 
