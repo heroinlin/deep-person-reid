@@ -26,7 +26,7 @@ class BusID(BaseImageDataset):
     """
     dataset_dir = 'F:/Database/od_dataset/train_format'
 
-    def __init__(self, root='data', pickle_file="train_1", split_id=0, verbose=True, **kwargs):
+    def __init__(self, root='data', pickle_file="train1-6", split_id=0, verbose=True, **kwargs):
         super(BusID, self).__init__(root)
         self.dataset_dir = osp.join(self.root, self.dataset_dir)
         self.pickle_path = osp.join(r"G:\data_format_transform\new", f'{pickle_file}.pkl')
@@ -88,7 +88,7 @@ class BusID(BaseImageDataset):
                 pid_container.add(pid)
 
             num_pids = len(pid_container)
-            num_train_pids = num_pids // 2
+            num_train_pids = 7 * num_pids // 8
 
             splits = []
             for _ in range(10):
@@ -98,3 +98,35 @@ class BusID(BaseImageDataset):
                 train_idxs = np.sort(train_idxs)
                 idx2label = {idx: label for label, idx in enumerate(train_idxs)}
 
+                train, test_a, test_b = [], [], []
+
+                for img_path, pid, camid in img_list:
+                    if pid in train_idxs:
+                        train.append((img_path, idx2label[pid], camid))
+                    else:
+                        if camid == 0:
+                            test_a.append((img_path, pid, camid))
+                        else:
+                            test_b.append((img_path, pid, camid))
+
+                # use cameraA as query and cameraB as gallery
+                split = {'train': train, 'query': test_a, 'gallery': test_b,
+                         'num_train_pids': num_train_pids,
+                         'num_query_pids': num_pids - num_train_pids,
+                         'num_gallery_pids': num_pids - num_train_pids,
+                         }
+                splits.append(split)
+
+                # use cameraB as query and cameraA as gallery
+                split = {'train': train, 'query': test_b, 'gallery': test_a,
+                         'num_train_pids': num_train_pids,
+                         'num_query_pids': num_pids - num_train_pids,
+                         'num_gallery_pids': num_pids - num_train_pids,
+                         }
+                splits.append(split)
+
+            print("Totally {} splits are created".format(len(splits)))
+            write_json(splits, self.split_path)
+            print("Split file saved to {}".format(self.split_path))
+
+        print("Splits created")
