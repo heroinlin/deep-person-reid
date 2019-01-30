@@ -89,7 +89,8 @@ class BusID(BaseImageDataset):
                     pid_container.append(pid)
 
             num_pids = len(pid_container)
-            num_train_pids = 7 * num_pids // 8
+            # num_train_pids = 7 * num_pids // 8
+            num_train_pids = num_pids - 200
 
             splits = []
             for _ in range(10):
