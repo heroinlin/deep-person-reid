@@ -1,6 +1,6 @@
 
 import argparse
-from test import test
+from eval_test_dataset import test
 
 
 def parse_args():
