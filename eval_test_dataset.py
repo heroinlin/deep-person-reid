@@ -9,6 +9,7 @@ import cv2
 from pathlib import Path
 from datetime import datetime
 from data import ODData
+from collections import defaultdict
 
 
 def read_label(boxes, image_width, image_height):
@@ -237,11 +238,18 @@ class CTest:
             for g in range(gallery_persons_num):
                 if self._date_time_compare(query_times[q], gallery_times[g]) < 0:  # q_times[q] <= g_times[g]:
                     dist_mat[q, g] = 1000
-        result_set = self.iterate_algorithm(dist_mat, q_label)
-        for q in range(len(q_label)):
-            # result_set[q, 1] = g_label[q_label.index(result_set[q, 0])]  # 将查询样本ID对应的正确库样本ID计算出来
-            result_set[q, 3] = g_label[result_set[q, 2]]
-        return result_set
+        cmc, mAP = self.eval_Map(dist_mat, q_label, g_label, max_rank=50)
+        print("Results ----------")
+        print("mAP: {:.1%}".format(mAP))
+        print("CMC curve")
+        for r in [1, 3, 5, 10]:
+            print("Rank-{:<3}: {:.1%}".format(r, cmc[r - 1]))
+        print("------------------")
+        # result_set = self.iterate_algorithm(dist_mat, q_label)
+        # for q in range(len(q_label)):
+        #     # result_set[q, 1] = g_label[q_label.index(result_set[q, 0])]  # 将查询样本ID对应的正确库样本ID计算出来
+        #     result_set[q, 3] = g_label[result_set[q, 2]]
+        # return result_set
 
     def re_ranking(self) -> np.array:
         gallery_features, query_features = self.features
@@ -268,6 +276,74 @@ class CTest:
             result_set[q, 1] = g_label[q_label.index(result_set[q, 0])]  # 将查询样本ID对应的正确库样本ID计算出来
             result_set[q, 3] = g_label[result_set[q, 2]]
         return result_set
+
+    def eval_Map(self, distmat, q_pids, g_pids, max_rank):
+        """Evaluation with cuhk03 metric
+        Key: one image for each gallery identity is randomly sampled for each query identity.
+        Random sampling is performed num_repeats times.
+        """
+        num_repeats = 10
+        num_q, num_g = distmat.shape
+        q_pids = np.asarray(q_pids)
+        g_pids = np.asarray(g_pids)
+        if num_g < max_rank:
+            max_rank = num_g
+            print("Note: number of gallery samples is quite small, got {}".format(num_g))
+
+        indices = np.argsort(distmat, axis=1)
+        matches = (g_pids[indices] == q_pids[:, np.newaxis]).astype(np.int32)
+
+        # compute cmc curve for each query
+        all_cmc = []
+        all_AP = []
+        num_valid_q = 0.  # number of valid query
+
+        for q_idx in range(num_q):
+            # remove gallery samples that have the same pid and camid with query
+            order = indices[q_idx]
+
+            # compute cmc curve
+            raw_cmc = matches[q_idx]  # binary vector, positions with value 1 are correct matches
+            if not np.any(raw_cmc):
+                # this condition is true when query identity does not appear in gallery
+                continue
+
+            kept_g_pids = g_pids[order]
+            g_pids_dict = defaultdict(list)
+            for idx, pid in enumerate(kept_g_pids):
+                g_pids_dict[pid].append(idx)
+
+            cmc, AP = 0., 0.
+            for repeat_idx in range(num_repeats):
+                mask = np.zeros(len(raw_cmc), dtype=np.bool)
+                for _, idxs in g_pids_dict.items():
+                    # randomly sample one image for each gallery person
+                    rnd_idx = np.random.choice(idxs)
+                    mask[rnd_idx] = True
+                masked_raw_cmc = raw_cmc[mask]
+                _cmc = masked_raw_cmc.cumsum()
+                _cmc[_cmc > 1] = 1
+                cmc += _cmc[:max_rank].astype(np.float32)
+                # compute AP
+                num_rel = masked_raw_cmc.sum()
+                tmp_cmc = masked_raw_cmc.cumsum()
+                tmp_cmc = [x / (i + 1.) for i, x in enumerate(tmp_cmc)]
+                tmp_cmc = np.asarray(tmp_cmc) * masked_raw_cmc
+                AP += tmp_cmc.sum() / num_rel
+
+            cmc /= num_repeats
+            AP /= num_repeats
+            all_cmc.append(cmc)
+            all_AP.append(AP)
+            num_valid_q += 1.
+
+        assert num_valid_q > 0, "Error: all query identities do not appear in gallery"
+
+        all_cmc = np.asarray(all_cmc).astype(np.float32)
+        all_cmc = all_cmc.sum(0) / num_valid_q
+        mAP = np.mean(all_AP)
+
+        return all_cmc, mAP
 
     def write_result_to_csv(self, result_set):
         # 根据真实值和预测值进行准确度计算
@@ -382,8 +458,8 @@ def test(args):
     # model = model.module
     model.eval()
 
-    total_correct_person_num = 0
-    total_query_person_num = 0
+    # total_correct_person_num = 0
+    # total_query_person_num = 0
 
     for schedule, schedule_data in test_data.items():
         print(schedule)
@@ -391,11 +467,12 @@ def test(args):
         tester.feature_extract(0)
         tester.feature_extract(1)
         print("gallery have {} persons, query have {} persons".format(*map(len, tester.features)))
+        tester.compute_diff_mat()
         # result_set = tester.compute_diff_mat()
-        result_set = tester.re_ranking()
-        tester.write_result_to_csv(result_set)
-        print("This bus schedules predict accuracy is {:.4f}\n"
-              .format((result_set[:, 1] == result_set[:, 3]).sum() / len(result_set)))
-        total_correct_person_num += (result_set[:, 1] == result_set[:, 3]).sum()
-        total_query_person_num += len(result_set)
-    print("total predict accuracy is {:.4f}\n".format(total_correct_person_num / total_query_person_num))
+    #     result_set = tester.re_ranking()
+    #     tester.write_result_to_csv(result_set)
+    #     print("This bus schedules predict accuracy is {:.4f}\n"
+    #           .format((result_set[:, 1] == result_set[:, 3]).sum() / len(result_set)))
+    #     total_correct_person_num += (result_set[:, 1] == result_set[:, 3]).sum()
+    #     total_query_person_num += len(result_set)
+    # print("total predict accuracy is {:.4f}\n".format(total_correct_person_num / total_query_person_num))
