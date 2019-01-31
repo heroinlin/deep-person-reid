@@ -11,6 +11,123 @@ from datetime import datetime
 from data import ODData
 
 
+def read_label(boxes, image_width, image_height):
+    for box in boxes:
+        x1, y1, x2, y2 = box
+        x, y, w, h = (x1 + x2) / 2, (y1 + y2) / 2, x2 - x1, y2 - y1
+        # 框扩大1.5倍
+        w = min(w * 1.5, 1.0)
+        h = min(h * 1.5, 1.0)
+        x1, y1, x2, y2 = x - w / 2, y - h / 2, x + w / 2, y + h / 2
+        # 到图像范围
+        x1, y1, x2, y2 = round(x1 * image_width), round(y1 * image_height), round(x2 * image_width), round(y2 * image_height)
+        x1, y1, x2, y2 = max(x1, 0), max(y1, 0), min(x2, image_width), min(y2, image_height)
+        box = [x1, y1, x2, y2]
+        return box
+
+
+def normalize(nparray, order=2, axis=0):
+    """Normalize a N-D numpy array along the specified axis."""
+    norm = np.linalg.norm(nparray, ord=order, axis=axis, keepdims=True)
+    return nparray / (norm + np.finfo(np.float32).eps)
+
+
+def compute_dist(array1, array2, type='euclidean'):
+    """Compute the euclidean or cosine distance of all pairs.
+    Args:
+      array1: numpy array with shape [m1, n]
+      array2: numpy array with shape [m2, n]
+      type: one of ['cosine', 'euclidean']
+    Returns:
+      numpy array with shape [m1, m2]
+    """
+    assert type in ['cosine', 'euclidean']
+    if type == 'cosine':
+        array1 = normalize(array1, axis=1)
+        array2 = normalize(array2, axis=1)
+        dist = np.matmul(array1, array2.T)
+        return dist
+    else:
+        # shape [m1, 1]
+        square1 = np.sum(np.square(array1), axis=1)[..., np.newaxis]
+        # shape [1, m2]
+        square2 = np.sum(np.square(array2), axis=1)[np.newaxis, ...]
+        squared_dist = - 2 * np.matmul(array1, array2.T) + square1 + square2
+        squared_dist[squared_dist < 0] = 0
+        dist = np.sqrt(squared_dist)
+        return dist
+
+
+def re_ranking(q_g_dist, q_q_dist, g_g_dist, k1=20, k2=6, lambda_value=0.3):
+    # The following naming, e.g. gallery_num, is different from outer scope.
+    # Don't care about it.
+
+    original_dist = np.concatenate(
+        [np.concatenate([q_q_dist, q_g_dist], axis=1),
+         np.concatenate([q_g_dist.T, g_g_dist], axis=1)],
+        axis=0)
+    original_dist = np.power(original_dist, 2).astype(np.float32)
+    original_dist = np.transpose(1. * original_dist / np.max(original_dist, axis=0))
+    V = np.zeros_like(original_dist).astype(np.float32)
+    initial_rank = np.argsort(original_dist).astype(np.int32)
+
+    query_num = q_g_dist.shape[0]
+    gallery_num = q_g_dist.shape[0] + q_g_dist.shape[1]
+    all_num = gallery_num
+
+    for i in range(all_num):
+        # k-reciprocal neighbors
+        forward_k_neigh_index = initial_rank[i, :k1 + 1]
+        backward_k_neigh_index = initial_rank[forward_k_neigh_index, :k1 + 1]
+        fi = np.where(backward_k_neigh_index == i)[0]
+        k_reciprocal_index = forward_k_neigh_index[fi]
+        k_reciprocal_expansion_index = k_reciprocal_index
+        for j in range(len(k_reciprocal_index)):
+            candidate = k_reciprocal_index[j]
+            candidate_forward_k_neigh_index = initial_rank[candidate, :int(np.around(k1 / 2.)) + 1]
+            candidate_backward_k_neigh_index = initial_rank[candidate_forward_k_neigh_index,
+                                               :int(np.around(k1 / 2.)) + 1]
+            fi_candidate = np.where(candidate_backward_k_neigh_index == candidate)[0]
+            candidate_k_reciprocal_index = candidate_forward_k_neigh_index[fi_candidate]
+            if len(np.intersect1d(candidate_k_reciprocal_index, k_reciprocal_index)) > 2. / 3 * len(
+                    candidate_k_reciprocal_index):
+                k_reciprocal_expansion_index = np.append(k_reciprocal_expansion_index, candidate_k_reciprocal_index)
+
+        k_reciprocal_expansion_index = np.unique(k_reciprocal_expansion_index)
+        weight = np.exp(-original_dist[i, k_reciprocal_expansion_index])
+        V[i, k_reciprocal_expansion_index] = 1. * weight / np.sum(weight)
+    original_dist = original_dist[:query_num, ]
+    if k2 != 1:
+        V_qe = np.zeros_like(V, dtype=np.float32)
+        for i in range(all_num):
+            V_qe[i, :] = np.mean(V[initial_rank[i, :k2], :], axis=0)
+        V = V_qe
+        del V_qe
+    del initial_rank
+    invIndex = []
+    for i in range(gallery_num):
+        invIndex.append(np.where(V[:, i] != 0)[0])
+
+    jaccard_dist = np.zeros_like(original_dist, dtype=np.float32)
+
+    for i in range(query_num):
+        temp_min = np.zeros(shape=[1, gallery_num], dtype=np.float32)
+        indNonZero = np.where(V[i, :] != 0)[0]
+        indImages = []
+        indImages = [invIndex[ind] for ind in indNonZero]
+        for j in range(len(indNonZero)):
+            temp_min[0, indImages[j]] = temp_min[0, indImages[j]] + np.minimum(V[i, indNonZero[j]],
+                                                                               V[indImages[j], indNonZero[j]])
+        jaccard_dist[i] = 1 - temp_min / (2. - temp_min)
+
+    final_dist = jaccard_dist * (1 - lambda_value) + original_dist * lambda_value
+    del original_dist
+    del V
+    del jaccard_dist
+    final_dist = final_dist[:query_num, query_num:]
+    return final_dist
+
+
 class CTest:
     def __init__(self, schedule: tuple, schedule_data: dict, model, batch_size: int, device="cpu"):
         super(CTest, self).__init__()
@@ -123,6 +240,32 @@ class CTest:
         result_set = self.iterate_algorithm(dist_mat, q_label)
         for q in range(len(q_label)):
             # result_set[q, 1] = g_label[q_label.index(result_set[q, 0])]  # 将查询样本ID对应的正确库样本ID计算出来
+            result_set[q, 3] = g_label[result_set[q, 2]]
+        return result_set
+
+    def re_ranking(self) -> np.array:
+        gallery_features, query_features = self.features
+        gallery_times, query_times = self.times
+        g_label = list(np.vstack(gallery_features.keys()))
+        q_label = list(np.vstack(query_features.keys()))
+        g_g_dist = compute_dist(np.vstack(gallery_features.values()),
+                                np.vstack(gallery_features.values()), type='euclidean')
+        # gallery-gallery distance
+        q_q_dist = compute_dist(np.vstack(query_features.values()), np.vstack(query_features.values()),
+                                type='euclidean')
+        # re-ranked query-gallery distance
+        q_g_dist = compute_dist(np.vstack(query_features.values()), np.vstack(gallery_features.values()),
+                                type='euclidean')
+        re_r_q_g_dist = re_ranking(q_g_dist, q_q_dist, g_g_dist)
+        query_persons_num = re_r_q_g_dist.shape[0]
+        gallery_persons_num = re_r_q_g_dist.shape[1]
+        for q in range(query_persons_num):
+            for g in range(gallery_persons_num):
+                if self._date_time_compare(query_times[q], gallery_times[g]) < 0:  # q_times[q] <= g_times[g]:
+                    re_r_q_g_dist[q, g] = 1000
+        result_set = self.iterate_algorithm(re_r_q_g_dist, q_label)
+        for q in range(len(q_label)):
+            result_set[q, 1] = g_label[q_label.index(result_set[q, 0])]  # 将查询样本ID对应的正确库样本ID计算出来
             result_set[q, 3] = g_label[result_set[q, 2]]
         return result_set
 
@@ -248,7 +391,8 @@ def test(args):
         tester.feature_extract(0)
         tester.feature_extract(1)
         print("gallery have {} persons, query have {} persons".format(*map(len, tester.features)))
-        result_set = tester.compute_diff_mat()
+        # result_set = tester.compute_diff_mat()
+        result_set = tester.re_ranking()
         tester.write_result_to_csv(result_set)
         print("This bus schedules predict accuracy is {:.4f}\n"
               .format((result_set[:, 1] == result_set[:, 3]).sum() / len(result_set)))
