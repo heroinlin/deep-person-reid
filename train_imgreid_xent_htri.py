@@ -78,6 +78,8 @@ def main():
         checkpoint = torch.load(args.resume)
         model.load_state_dict(checkpoint['state_dict'])
         args.start_epoch = checkpoint['epoch'] + 1
+        if args.resume_optimizer:
+            optimizer.load_state_dict(checkpoint['optimizer'])
         print("Loaded checkpoint from '{}'".format(args.resume))
         print("- start_epoch: {}\n- rank1: {}".format(args.start_epoch, checkpoint['rank1']))
 
@@ -144,6 +146,7 @@ def main():
                 'state_dict': state_dict,
                 'rank1': rank1,
                 'epoch': epoch,
+                'optimizer': optimizer.state_dict(),
             }, False, osp.join(args.save_dir, 'checkpoint_ep' + str(epoch + 1) + '.pth.tar'))
 
     elapsed = round(time.time() - start_time)
