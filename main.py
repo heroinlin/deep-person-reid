@@ -25,5 +25,6 @@ def main():
 
 
 if __name__ == '__main__':
-    # test --annotation_file  G:\data_format_transform\new\test.pkl  --image_root  F:\Database\od_dataset\test_format\test_1  --checkpoint ./log/resnet50-bus_id-xent_htri/checkpoint_ep30.pth.tar
+    # test --annotation_file  G:\data_format_transform\new\test.pkl  --image_root  F:\Database\od_dataset\test_format\test_1 --arch mlfn --checkpoint ./log/mlfn-bus_id-xent_htri/checkpoint_ep110.pth.tar
     main()
+
