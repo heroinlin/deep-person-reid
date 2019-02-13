@@ -10,6 +10,7 @@ from pathlib import Path
 from datetime import datetime
 from data import ODData
 from collections import defaultdict
+import pickle
 
 
 def read_label(boxes, image_width, image_height):
@@ -145,7 +146,7 @@ class CTest:
         self.image_height = 144
         self.mean = [0.485, 0.456, 0.406]
         self.stddev = [0.229, 0.224, 0.225]
-        self.feature_size = 2048
+        self.feature_size = 1024
         self.max_time_gap = 7200
 
         self.transforms = transforms.Compose([
@@ -238,6 +239,9 @@ class CTest:
             for g in range(gallery_persons_num):
                 if self._date_time_compare(query_times[q], gallery_times[g]) < 0:  # q_times[q] <= g_times[g]:
                     dist_mat[q, g] = 1000
+        # distmat_file = open("distmat.plk", "wb")
+        # pickle.dump(distmat, distmat_file, protocol=2)
+        # distmat_file.close()
         cmc, mAP = self.eval_Map(dist_mat, q_label, g_label, max_rank=50)
         print("Results ----------")
         print("mAP: {:.1%}".format(mAP))
@@ -245,11 +249,12 @@ class CTest:
         for r in [1, 3, 5, 10]:
             print("Rank-{:<3}: {:.1%}".format(r, cmc[r - 1]))
         print("------------------")
-        # result_set = self.iterate_algorithm(dist_mat, q_label)
-        # for q in range(len(q_label)):
-        #     # result_set[q, 1] = g_label[q_label.index(result_set[q, 0])]  # 将查询样本ID对应的正确库样本ID计算出来
-        #     result_set[q, 3] = g_label[result_set[q, 2]]
-        # return result_set
+        result_set = self.iterate_algorithm(dist_mat, q_label)
+        # result_set = self.conditions_eval(dist_mat, q_label)
+        for q in range(len(q_label)):
+            # result_set[q, 1] = g_label[q_label.index(result_set[q, 0])]  # 将查询样本ID对应的正确库样本ID计算出来
+            result_set[q, 3] = g_label[result_set[q, 2]]
+        return result_set
 
     def re_ranking(self) -> np.array:
         gallery_features, query_features = self.features
@@ -272,10 +277,29 @@ class CTest:
                 if self._date_time_compare(query_times[q], gallery_times[g]) < 0:  # q_times[q] <= g_times[g]:
                     re_r_q_g_dist[q, g] = 1000
         result_set = self.iterate_algorithm(re_r_q_g_dist, q_label)
+        # result_set = self.conditions_eval(re_r_q_g_dist, q_label)
         for q in range(len(q_label)):
             result_set[q, 1] = g_label[q_label.index(result_set[q, 0])]  # 将查询样本ID对应的正确库样本ID计算出来
             result_set[q, 3] = g_label[result_set[q, 2]]
         return result_set
+
+    def conditions_eval(self, distmat, new_qlabel, max_rank=5, margin=0.3):
+        indices = np.argsort(distmat, axis=1)
+        distmat_sort = np.array([distmat[i, indices[:, 0:max_rank][i]] for i in range(len(indices[:, 0]))])
+        # distmat_sort = distmat_sort / np.tile(np.sum(distmat_sort, axis=1), [max_rank, 1]).transpose()
+        margin_condition = distmat_sort[:, 0] < margin
+        compare_condition = (distmat_sort[:, 1] - distmat_sort[:, 0]) / (distmat_sort[:, 1] + 0.0000001) > 0.1
+        all_conditions = margin_condition & compare_condition
+        q_len = distmat.shape[0]
+        res_set = np.zeros((q_len, 4), dtype=np.int)
+        for index, condition in enumerate(all_conditions):
+            if condition:
+                res_set[index, 0] = new_qlabel[index]
+                res_set[index, 1] = res_set[index, 0]  # 存储查询样本对应的正确库样本的编号
+                res_set[index, 2] = indices[index, 0]
+            else:
+                res_set[index, 2] = -1
+        return res_set
 
     def eval_Map(self, distmat, q_pids, g_pids, max_rank):
         """Evaluation with cuhk03 metric
@@ -458,8 +482,8 @@ def test(args):
     # model = model.module
     model.eval()
 
-    # total_correct_person_num = 0
-    # total_query_person_num = 0
+    total_correct_person_num = 0
+    total_query_person_num = 0
 
     for schedule, schedule_data in test_data.items():
         print(schedule)
@@ -467,12 +491,12 @@ def test(args):
         tester.feature_extract(0)
         tester.feature_extract(1)
         print("gallery have {} persons, query have {} persons".format(*map(len, tester.features)))
-        tester.compute_diff_mat()
-        # result_set = tester.compute_diff_mat()
-    #     result_set = tester.re_ranking()
-    #     tester.write_result_to_csv(result_set)
-    #     print("This bus schedules predict accuracy is {:.4f}\n"
-    #           .format((result_set[:, 1] == result_set[:, 3]).sum() / len(result_set)))
-    #     total_correct_person_num += (result_set[:, 1] == result_set[:, 3]).sum()
-    #     total_query_person_num += len(result_set)
-    # print("total predict accuracy is {:.4f}\n".format(total_correct_person_num / total_query_person_num))
+        # tester.compute_diff_mat()
+        result_set = tester.compute_diff_mat()
+        # result_set = tester.re_ranking()
+        tester.write_result_to_csv(result_set)
+        print("This bus schedules predict accuracy is {:.4f}\n"
+              .format((result_set[:, 1] == result_set[:, 3]).sum() / len(result_set)))
+        total_correct_person_num += (result_set[:, 1] == result_set[:, 3]).sum()
+        total_query_person_num += len(result_set)
+    print("total predict accuracy is {:.4f}\n".format(total_correct_person_num / total_query_person_num))
