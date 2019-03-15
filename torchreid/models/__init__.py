@@ -25,7 +25,7 @@ __model_factory = {
     'resnet50': resnet50,
     'resnet50_fc512': resnet50_fc512,
     'resnext50_32x4d': resnext50_32x4d,
-    'resnext101_32x4d': resnext101_32x4d,
+    'resnext50_32x4d_fc512': resnext50_32x4d_fc512,
     'se_resnet50': se_resnet50,
     'se_resnet50_fc512': se_resnet50_fc512,
     'se_resnet101': se_resnet101,
@@ -33,13 +33,14 @@ __model_factory = {
     'se_resnext101_32x4d': se_resnext101_32x4d,
     'densenet121': densenet121,
     'densenet121_fc512': densenet121_fc512,
-    'inceptionresnetv2': InceptionResNetV2,
+    'inceptionresnetv2': inceptionresnetv2,
     'inceptionv4': inceptionv4,
     'xception': xception,
     # lightweight models
     'nasnsetmobile': nasnetamobile,
-    'mobilenetv2': MobileNetV2,
-    'shufflenet': ShuffleNet,
+    'mobilenetv2_1dot0': mobilenetv2_1dot0,
+    'mobilenetv2_1dot4': mobilenetv2_1dot4,
+    'shufflenet': shufflenet,
     'squeezenet1_0': squeezenet1_0,
     'squeezenet1_0_fc512': squeezenet1_0_fc512,
     'squeezenet1_1': squeezenet1_1,
@@ -59,5 +60,5 @@ def get_names():
 
 def init_model(name, *args, **kwargs):
     if name not in list(__model_factory.keys()):
-        raise KeyError("Unknown model: {}".format(name))
+        raise KeyError('Unknown model: {}'.format(name))
     return __model_factory[name](*args, **kwargs)

@@ -1,10 +1,3 @@
-# Custom
-data/
-log/
-saved-models/
-torchreid/eval_cylib/*.c
-debug.py
-
 # OS X
 .DS_Store
 .Spotlight-V100
@@ -116,3 +109,14 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# Custom
+data
+log
+saved-models
+debug.py
+.idea
+
+# Cython eval code
+torchreid/eval_cylib/eval_metrics_cy.c
+torchreid/eval_cylib/*.html

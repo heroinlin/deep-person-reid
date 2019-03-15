@@ -10,12 +10,12 @@ import torchvision
 import torch.utils.model_zoo as model_zoo
 
 
-__all__ = ['resnext50_32x4d', 'resnext101_32x4d']
+__all__ = ['resnext50_32x4d', 'resnext50_32x4d_fc512']
 
 
 model_urls = {
-    'resnext50_32x4d': None,
-    'resnext101_32x4d': None,
+    # top1 = 76.3
+    'resnext50_32x4d': 'http://www.eecs.qmul.ac.uk/~kz303/deep-person-reid/model-zoo/imagenet-pretrained/resnext50_32x4d-453b60f8.pth',
 }
 
 
@@ -123,7 +123,7 @@ class ResNeXt(nn.Module):
             self.feature_dim = input_dim
             return None
         
-        assert isinstance(fc_dims, (list, tuple)), "fc_dims must be either list or tuple, but got {}".format(type(fc_dims))
+        assert isinstance(fc_dims, (list, tuple)), 'fc_dims must be either list or tuple, but got {}'.format(type(fc_dims))
         
         layers = []
         for dim in fc_dims:
@@ -192,16 +192,15 @@ def init_pretrained_weights(model, model_url):
     Initialize model with pretrained weights.
     Layers that don't match with pretrained layers in name or size are kept unchanged.
     """
-    """pretrain_dict = model_zoo.load_url(model_url)
+    pretrain_dict = model_zoo.load_url(model_url)
     model_dict = model.state_dict()
     pretrain_dict = {k: v for k, v in pretrain_dict.items() if k in model_dict and model_dict[k].size() == v.size()}
     model_dict.update(pretrain_dict)
     model.load_state_dict(model_dict)
-    print("Initialized model with pretrained weights from {}".format(model_url))"""
-    print("Imagenet weights unavailable")
+    print('Initialized model with pretrained weights from {}'.format(model_url))
 
 
-def resnext50_32x4d(num_classes, loss, pretrained='imagenet', **kwargs):
+def resnext50_32x4d(num_classes, loss={'xent'}, pretrained=True, **kwargs):
     model = ResNeXt(
         num_classes=num_classes,
         loss=loss,
@@ -214,24 +213,24 @@ def resnext50_32x4d(num_classes, loss, pretrained='imagenet', **kwargs):
         dropout_p=None,
         **kwargs
     )
-    if pretrained == 'imagenet':
+    if pretrained:
         init_pretrained_weights(model, model_urls['resnext50_32x4d'])
     return model
 
 
-def resnext101_32x4d(num_classes, loss, pretrained='imagenet', **kwargs):
+def resnext50_32x4d_fc512(num_classes, loss={'xent'}, pretrained=True, **kwargs):
     model = ResNeXt(
         num_classes=num_classes,
         loss=loss,
         block=ResNeXtBottleneck,
-        layers=[3, 4, 23, 3],
+        layers=[3, 4, 6, 3],
         groups=32,
         base_width=4,
-        last_stride=2,
-        fc_dims=None,
+        last_stride=1,
+        fc_dims=[512],
         dropout_p=None,
         **kwargs
     )
-    if pretrained == 'imagenet':
+    if pretrained:
         init_pretrained_weights(model, model_urls['resnext50_32x4d'])
     return model

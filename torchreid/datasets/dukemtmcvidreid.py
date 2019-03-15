@@ -36,7 +36,8 @@ class DukeMTMCVidReID(BaseVideoDataset):
     dataset_dir = 'dukemtmc-vidreid'
 
     def __init__(self, root='data', min_seq_len=0, verbose=True, **kwargs):
-        self.dataset_dir = osp.join(root, self.dataset_dir)
+        super(DukeMTMCVidReID, self).__init__(root)
+        self.dataset_dir = osp.join(self.root, self.dataset_dir)
         self.dataset_url = 'http://vision.cs.duke.edu/DukeMTMC/data/misc/DukeMTMC-VideoReID.zip'
         self.train_dir = osp.join(self.dataset_dir, 'DukeMTMC-VideoReID/train')
         self.query_dir = osp.join(self.dataset_dir, 'DukeMTMC-VideoReID/query')
@@ -46,16 +47,16 @@ class DukeMTMCVidReID(BaseVideoDataset):
         self.split_gallery_json_path = osp.join(self.dataset_dir, 'split_gallery.json')
 
         self.min_seq_len = min_seq_len
-        self._download_data()
-        self._check_before_run()
-        print("Note: if root path is changed, the previously generated json files need to be re-generated (so delete them first)")
+        self.download_data()
+        self.check_before_run()
+        print('Note: if root path is changed, the previously generated json files need to be re-generated (so delete them first)')
 
-        train = self._process_dir(self.train_dir, self.split_train_json_path, relabel=True)
-        query = self._process_dir(self.query_dir, self.split_query_json_path, relabel=False)
-        gallery = self._process_dir(self.gallery_dir, self.split_gallery_json_path, relabel=False)
+        train = self.process_dir(self.train_dir, self.split_train_json_path, relabel=True)
+        query = self.process_dir(self.query_dir, self.split_query_json_path, relabel=False)
+        gallery = self.process_dir(self.gallery_dir, self.split_gallery_json_path, relabel=False)
 
         if verbose:
-            print("=> DukeMTMC-VideoReID loaded")
+            print('=> DukeMTMC-VideoReID loaded')
             self.print_dataset_statistics(train, query, gallery)
 
         self.train = train
@@ -66,43 +67,43 @@ class DukeMTMCVidReID(BaseVideoDataset):
         self.num_query_pids, _, self.num_query_cams = self.get_videodata_info(self.query)
         self.num_gallery_pids, _, self.num_gallery_cams = self.get_videodata_info(self.gallery)
 
-    def _download_data(self):
+    def download_data(self):
         if osp.exists(self.dataset_dir):
-            print("This dataset has been downloaded.")
+            print('This dataset has been downloaded.')
             return
 
-        print("Creating directory {}".format(self.dataset_dir))
+        print('Creating directory {}'.format(self.dataset_dir))
         mkdir_if_missing(self.dataset_dir)
         fpath = osp.join(self.dataset_dir, osp.basename(self.dataset_url))
 
-        print("Downloading DukeMTMC-VideoReID dataset")
+        print('Downloading DukeMTMC-VideoReID dataset')
         urllib.urlretrieve(self.dataset_url, fpath)
 
-        print("Extracting files")
+        print('Extracting files')
         zip_ref = zipfile.ZipFile(fpath, 'r')
         zip_ref.extractall(self.dataset_dir)
         zip_ref.close()
 
-    def _check_before_run(self):
+    def check_before_run(self):
         """Check if all files are available before going deeper"""
         if not osp.exists(self.dataset_dir):
-            raise RuntimeError("'{}' is not available".format(self.dataset_dir))
+            raise RuntimeError('"{}" is not available'.format(self.dataset_dir))
         if not osp.exists(self.train_dir):
-            raise RuntimeError("'{}' is not available".format(self.train_dir))
+            raise RuntimeError('"{}" is not available'.format(self.train_dir))
         if not osp.exists(self.query_dir):
-            raise RuntimeError("'{}' is not available".format(self.query_dir))
+            raise RuntimeError('"{}" is not available'.format(self.query_dir))
         if not osp.exists(self.gallery_dir):
-            raise RuntimeError("'{}' is not available".format(self.gallery_dir))
+            raise RuntimeError('"{}" is not available'.format(self.gallery_dir))
 
-    def _process_dir(self, dir_path, json_path, relabel):
+    def process_dir(self, dir_path, json_path, relabel):
         if osp.exists(json_path):
-            print("=> {} generated before, awesome!".format(json_path))
+            print('=> {} generated before, awesome!'.format(json_path))
             split = read_json(json_path)
             return split['tracklets']
 
-        print("=> Automatically generating split (might take a while for the first time, have a coffe)")
+        print('=> Automatically generating split (might take a while for the first time, have a coffe)')
         pdirs = glob.glob(osp.join(dir_path, '*')) # avoid .DS_Store
-        print("Processing '{}' with {} person identities".format(dir_path, len(pdirs)))
+        print('Processing "{}" with {} person identities'.format(dir_path, len(pdirs)))
 
         pid_container = set()
         for pdir in pdirs:
@@ -128,7 +129,7 @@ class DukeMTMCVidReID(BaseVideoDataset):
                     img_idx_name = 'F' + str(img_idx+1).zfill(4)
                     res = glob.glob(osp.join(tdir, '*' + img_idx_name + '*.jpg'))
                     if len(res) == 0:
-                        print("Warn: index name {} in {} is missing, jump to next".format(img_idx_name, tdir))
+                        print('Warn: index name {} in {} is missing, jump to next'.format(img_idx_name, tdir))
                         continue
                     img_paths.append(res[0])
                 img_name = osp.basename(img_paths[0])
@@ -141,7 +142,7 @@ class DukeMTMCVidReID(BaseVideoDataset):
                 img_paths = tuple(img_paths)
                 tracklets.append((img_paths, pid, camid))
 
-        print("Saving split to {}".format(json_path))
+        print('Saving split to {}'.format(json_path))
         split_dict = {
             'tracklets': tracklets,
         }

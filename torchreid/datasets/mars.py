@@ -35,18 +35,19 @@ class Mars(BaseVideoDataset):
     dataset_dir = 'mars'
 
     def __init__(self, root='data', min_seq_len=0, verbose=True, **kwargs):
-        self.dataset_dir = osp.join(root, self.dataset_dir)
+        super(Mars, self).__init__(root)
+        self.dataset_dir = osp.join(self.root, self.dataset_dir)
         self.train_name_path = osp.join(self.dataset_dir, 'info/train_name.txt')
         self.test_name_path = osp.join(self.dataset_dir, 'info/test_name.txt')
         self.track_train_info_path = osp.join(self.dataset_dir, 'info/tracks_train_info.mat')
         self.track_test_info_path = osp.join(self.dataset_dir, 'info/tracks_test_info.mat')
         self.query_IDX_path = osp.join(self.dataset_dir, 'info/query_IDX.mat')
 
-        self._check_before_run()
+        self.check_before_run()
 
         # prepare meta data
-        train_names = self._get_names(self.train_name_path)
-        test_names = self._get_names(self.test_name_path)
+        train_names = self.get_names(self.train_name_path)
+        test_names = self.get_names(self.test_name_path)
         track_train = loadmat(self.track_train_info_path)['track_train_info'] # numpy.ndarray (8298, 4)
         track_test = loadmat(self.track_test_info_path)['track_test_info'] # numpy.ndarray (12180, 4)
         query_IDX = loadmat(self.query_IDX_path)['query_IDX'].squeeze() # numpy.ndarray (1980,)
@@ -55,12 +56,12 @@ class Mars(BaseVideoDataset):
         gallery_IDX = [i for i in range(track_test.shape[0]) if i not in query_IDX]
         track_gallery = track_test[gallery_IDX,:]
 
-        train = self._process_data(train_names, track_train, home_dir='bbox_train', relabel=True, min_seq_len=min_seq_len)
-        query = self._process_data(test_names, track_query, home_dir='bbox_test', relabel=False, min_seq_len=min_seq_len)
-        gallery = self._process_data(test_names, track_gallery, home_dir='bbox_test', relabel=False, min_seq_len=min_seq_len)
+        train = self.process_data(train_names, track_train, home_dir='bbox_train', relabel=True, min_seq_len=min_seq_len)
+        query = self.process_data(test_names, track_query, home_dir='bbox_test', relabel=False, min_seq_len=min_seq_len)
+        gallery = self.process_data(test_names, track_gallery, home_dir='bbox_test', relabel=False, min_seq_len=min_seq_len)
 
         if verbose:
-            print("=> MARS loaded")
+            print('=> MARS loaded')
             self.print_dataset_statistics(train, query, gallery)
 
         self.train = train
@@ -71,22 +72,22 @@ class Mars(BaseVideoDataset):
         self.num_query_pids, _, self.num_query_cams = self.get_videodata_info(self.query)
         self.num_gallery_pids, _, self.num_gallery_cams = self.get_videodata_info(self.gallery)
 
-    def _check_before_run(self):
+    def check_before_run(self):
         """Check if all files are available before going deeper"""
         if not osp.exists(self.dataset_dir):
-            raise RuntimeError("'{}' is not available".format(self.dataset_dir))
+            raise RuntimeError('"{}" is not available'.format(self.dataset_dir))
         if not osp.exists(self.train_name_path):
-            raise RuntimeError("'{}' is not available".format(self.train_name_path))
+            raise RuntimeError('"{}" is not available'.format(self.train_name_path))
         if not osp.exists(self.test_name_path):
-            raise RuntimeError("'{}' is not available".format(self.test_name_path))
+            raise RuntimeError('"{}" is not available'.format(self.test_name_path))
         if not osp.exists(self.track_train_info_path):
-            raise RuntimeError("'{}' is not available".format(self.track_train_info_path))
+            raise RuntimeError('"{}" is not available'.format(self.track_train_info_path))
         if not osp.exists(self.track_test_info_path):
-            raise RuntimeError("'{}' is not available".format(self.track_test_info_path))
+            raise RuntimeError('"{}" is not available'.format(self.track_test_info_path))
         if not osp.exists(self.query_IDX_path):
-            raise RuntimeError("'{}' is not available".format(self.query_IDX_path))
+            raise RuntimeError('"{}" is not available'.format(self.query_IDX_path))
 
-    def _get_names(self, fpath):
+    def get_names(self, fpath):
         names = []
         with open(fpath, 'r') as f:
             for line in f:
@@ -94,7 +95,7 @@ class Mars(BaseVideoDataset):
                 names.append(new_line)
         return names
 
-    def _process_data(self, names, meta_data, home_dir=None, relabel=False, min_seq_len=0):
+    def process_data(self, names, meta_data, home_dir=None, relabel=False, min_seq_len=0):
         assert home_dir in ['bbox_train', 'bbox_test']
         num_tracklets = meta_data.shape[0]
         pid_list = list(set(meta_data[:,2].tolist()))
@@ -114,11 +115,11 @@ class Mars(BaseVideoDataset):
 
             # make sure image names correspond to the same person
             pnames = [img_name[:4] for img_name in img_names]
-            assert len(set(pnames)) == 1, "Error: a single tracklet contains different person images"
+            assert len(set(pnames)) == 1, 'Error: a single tracklet contains different person images'
 
             # make sure all images are captured under the same camera
             camnames = [img_name[5] for img_name in img_names]
-            assert len(set(camnames)) == 1, "Error: images are captured under different cameras!"
+            assert len(set(camnames)) == 1, 'Error: images are captured under different cameras!'
 
             # append image names with directory information
             img_paths = [osp.join(self.dataset_dir, home_dir, img_name[:4], img_name) for img_name in img_names]
