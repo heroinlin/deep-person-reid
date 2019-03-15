@@ -477,7 +477,7 @@ def test(args):
     oddata = ODData(args.annotation_file, args.image_root)
     test_data = oddata.for_test()
 
-    model = models.init_model(name=args.arch, num_classes=10905, loss={'xent', 'htri'})
+    model = models.init_model(name=args.arch, num_classes=10905, loss={'xent', 'htri'}, pretrained=False)
     model.load_state_dict(checkpoint['state_dict'])
     # model = model.module
     model.eval()
