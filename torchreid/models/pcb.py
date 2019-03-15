@@ -222,7 +222,7 @@ class PCB(nn.Module):
             v_g = F.normalize(v_g, p=2, dim=1)
             return y, v_g.view(v_g.size(0), -1)
         else:
-            raise KeyError("Unsupported loss: {}".format(self.loss))
+            raise KeyError('Unsupported loss: {}'.format(self.loss))
 
 
 def init_pretrained_weights(model, model_url):
@@ -235,10 +235,10 @@ def init_pretrained_weights(model, model_url):
     pretrain_dict = {k: v for k, v in pretrain_dict.items() if k in model_dict and model_dict[k].size() == v.size()}
     model_dict.update(pretrain_dict)
     model.load_state_dict(model_dict)
-    print("Initialized model with pretrained weights from {}".format(model_url))
+    print('Initialized model with pretrained weights from {}'.format(model_url))
 
 
-def pcb_p6(num_classes, loss, pretrained='imagenet', **kwargs):
+def pcb_p6(num_classes, loss={'xent'}, pretrained=True, **kwargs):
     model = PCB(
         num_classes=num_classes,
         loss=loss,
@@ -250,12 +250,12 @@ def pcb_p6(num_classes, loss, pretrained='imagenet', **kwargs):
         nonlinear='relu',
         **kwargs
     )
-    if pretrained == 'imagenet':
+    if pretrained:
         init_pretrained_weights(model, model_urls['resnet50'])
     return model
 
 
-def pcb_p4(num_classes, loss, pretrained='imagenet', **kwargs):
+def pcb_p4(num_classes, loss={'xent'}, pretrained=True, **kwargs):
     model = PCB(
         num_classes=num_classes,
         loss=loss,
@@ -267,6 +267,6 @@ def pcb_p4(num_classes, loss, pretrained='imagenet', **kwargs):
         nonlinear='relu',
         **kwargs
     )
-    if pretrained == 'imagenet':
+    if pretrained:
         init_pretrained_weights(model, model_urls['resnet50'])
     return model

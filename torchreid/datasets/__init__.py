@@ -12,6 +12,7 @@ from .cuhk01 import CUHK01
 from .prid450s import PRID450S
 from .ilids import iLIDS
 from .sensereid import SenseReID
+from .prid import PRID
 
 from .mars import Mars
 from .ilidsvid import iLIDSVID
@@ -30,6 +31,7 @@ __imgreid_factory = {
     'prid450s': PRID450S,
     'ilids': iLIDS,
     'sensereid': SenseReID,
+    'prid': PRID,
 }
 
 
@@ -43,11 +45,11 @@ __vidreid_factory = {
 
 def init_imgreid_dataset(name, **kwargs):
     if name not in list(__imgreid_factory.keys()):
-        raise KeyError("Invalid dataset, got '{}', but expected to be one of {}".format(name, list(__imgreid_factory.keys())))
+        raise KeyError('Invalid dataset, got "{}", but expected to be one of {}'.format(name, list(__imgreid_factory.keys())))
     return __imgreid_factory[name](**kwargs)
 
 
 def init_vidreid_dataset(name, **kwargs):
     if name not in list(__vidreid_factory.keys()):
-        raise KeyError("Invalid dataset, got '{}', but expected to be one of {}".format(name, list(__vidreid_factory.keys())))
+        raise KeyError('Invalid dataset, got "{}", but expected to be one of {}'.format(name, list(__vidreid_factory.keys())))
     return __vidreid_factory[name](**kwargs)

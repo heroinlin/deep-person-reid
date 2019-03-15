@@ -3,27 +3,31 @@
   <img src="imgs/deep-person-reid-logo.png" alt="logo" width="260">
 </p>
 
-## Introduction
-Deep-person-reid is a [pytorch](http://pytorch.org/)-based framework for training and evaluating deep person re-identification models on reid benchmarks.
+This project aims to provide an efficient framework for training and evaluating deep person re-identification models in [Pytorch](http://pytorch.org/).
 
-It has the following features:
+**Highlights**
 - multi-GPU training.
 - support both image reid and video reid.
 - incredibly easy preparation of reid datasets.
+- multi-dataset training.
 - standard split protocol used by most research papers.
 - end-to-end training and evaluation.
 - implementations of state-of-the-art reid models.
 - access to pretrained reid models.
-- multi-dataset training.
 - visualization of ranked results.
 - state-of-the-art training techniques.
 
 ## Updates
+- 05-03-2019: [Updated MobileNetV2; Added ImageNet-pretrained and ReID-trained models](https://github.com/KaiyangZhou/deep-person-reid/issues/116#issuecomment-469642881).
+- 27-02-2019: Added QMUL-iLIDS and PRID. See [this issue](https://github.com/KaiyangZhou/deep-person-reid/issues/115) for details.
+- 03-02-2019: [Added random erasing and staged learning rate training](https://github.com/KaiyangZhou/deep-person-reid/issues/110).
 - 22-01-2019: Added [Market1501+500K](https://github.com/KaiyangZhou/deep-person-reid/issues/107).
 - 06-01-2019: Released [Awesome-ReID](AWESOME_REID.md), a collection of ReID-related research with links to codes and papers.
 - 26-11-2018: Released pretrained weights (imagenet & reid) for [shufflenet](torchreid/models/shufflenet.py).
 - 23-11-2018: Released imagenet-pretrained weights for [resnext50_32x4d](torchreid/models/resnext.py).
 - 11-11-2018: Added multi-dataset training; Added cython code for cuhk03-style evaluation; Wrapped dataloader construction to Image/Video-DataManager; Wrapped argparse to [args.py](args.py); Added [MLFN (CVPR'18)](https://arxiv.org/abs/1803.09132).
+
+Note: Some changes will only be discussed in [issues](https://github.com/KaiyangZhou/deep-person-reid/issues). Please check issues with [new_feature](https://github.com/KaiyangZhou/deep-person-reid/issues?q=label%3Anew_feature) tag.
 
 ## Installation
 1. `cd` to your preferred directory and run `git clone https://github.com/KaiyangZhou/deep-person-reid`.
@@ -41,6 +45,8 @@ Image-reid datasets:
 - [CUHK01](http://www.ee.cuhk.edu.hk/~xgwang/papers/liZWaccv12.pdf) (`cuhk01`)
 - [PRID450S](https://pdfs.semanticscholar.org/f62d/71e701c9fd021610e2076b5e0f5b2c7c86ca.pdf) (`prid450s`)
 - [SenseReID](http://openaccess.thecvf.com/content_cvpr_2017/papers/Zhao_Spindle_Net_Person_CVPR_2017_paper.pdf) (`sensereid`)
+- [QMUL-iLIDS](http://www.eecs.qmul.ac.uk/~sgg/papers/ZhengGongXiang_BMVC09.pdf) (`ilids`)
+- [PRID](https://pdfs.semanticscholar.org/4c1b/f0592be3e535faf256c95e27982db9b3d3d3.pdf) (`prid`)
 
 Video-reid datasets:
 - [MARS](http://www.liangzheng.org/1320.pdf) (`mars`)
@@ -149,7 +155,7 @@ python train_imgreid_xent.py \
 --gpu-devices 0 \
 ```
 
-Note that `--load-weights` will discard layer weights in `path_to/resnet50.pth.tar` that do not match the original model layers in size. If you encounter the `UnicodeDecodeError` problem when loading the checkpoints downloaded from the model zoo, please try [this solution](https://github.com/KaiyangZhou/deep-person-reid/issues/43#issuecomment-411266053).
+Note that `--load-weights` will discard layer weights in `path_to/resnet50.pth.tar` that do not match the original model layers in size.
 
 #### Evaluation frequency
 Use `--eval-freq` to control the evaluation frequency and `--start-eval` to indicate when to start counting the evaluation frequency. This is useful when you want to test the model for every `--eval-freq` epochs to diagnose the training (the cython evaluation code is really fast, e.g. evaluation on Market1501 can be done in less than 10s).
