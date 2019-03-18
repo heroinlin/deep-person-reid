@@ -267,4 +267,4 @@ def test(model, queryloader, galleryloader, use_gpu, ranks=[1, 5, 10, 20], retur
 
 if __name__ == '__main__':
     main()
-# python train_imgreid_xent_htri.py -s bus_id  -t bus_id  --height 144 --width 144 --optim amsgrad --label-smooth --train-sampler RandomIdentitySampler --lr 0.0002 --max-epoch 300 --eval-freq 10 --stepsize 20 40 --train-batch-size 64 --test-batch-size 100 -a pcb_p4  --save-dir log/pcb_p4-bus_id-xent_htri --gpu-devices 0
+# python train_imgreid_xent_htri.py -s bus_id  -t bus_id  --height 144 --width 144 --optim amsgrad --label-smooth --train-sampler RandomIdentitySampler --random-erase --color-jitter --color-aug --lr 0.0002 --max-epoch 300 --eval-freq 10 --stepsize 20 40 --train-batch-size 64 --test-batch-size 100 -a pcb_p4  --save-dir log/pcb_p4-bus_id-xent_htri --gpu-devices 0
