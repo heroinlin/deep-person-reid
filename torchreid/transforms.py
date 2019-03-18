@@ -9,6 +9,10 @@ import cv2
 import random
 import numpy as np
 import math
+import warnings
+import numbers
+from .utils.opencv_transforms import ColorJitter as ColorJitter_cv
+from .utils.opencv_transforms import Resize as Resize_cv
 
 import torch
 from torchvision.transforms import *
@@ -42,7 +46,7 @@ class Random2DTranslation(object):
 
 class RandomErasing(object):
     '''
-    Class that performs Random Erasing in Random Erasing Data Augmentation by Zhong et al. 
+    Class that performs Random Erasing in Random Erasing Data Augmentation by Zhong et al.
     -------------------------------------------------------------------------------------
     probability: The probability that the operation will be performed.
     sl: min erasing area
@@ -52,14 +56,14 @@ class RandomErasing(object):
     -------------------------------------------------------------------------------------
     Origin: https://github.com/zhunzhong07/Random-Erasing
     '''
-    
+
     def __init__(self, probability=0.5, sl=0.02, sh=0.4, r1=0.3, mean=[0.4914, 0.4822, 0.4465]):
         self.probability = probability
         self.mean = mean
         self.sl = sl
         self.sh = sh
         self.r1 = r1
-       
+
     def __call__(self, img):
 
         if random.uniform(0, 1) > self.probability:
@@ -67,9 +71,9 @@ class RandomErasing(object):
 
         for attempt in range(100):
             area = img.size()[1] * img.size()[2]
-       
+
             target_area = random.uniform(self.sl, self.sh) * area
-            aspect_ratio = random.uniform(self.r1, 1/self.r1)
+            aspect_ratio = random.uniform(self.r1, 1 / self.r1)
 
             h = int(round(math.sqrt(target_area * aspect_ratio)))
             w = int(round(math.sqrt(target_area / aspect_ratio)))
@@ -78,14 +82,43 @@ class RandomErasing(object):
                 x1 = random.randint(0, img.size()[1] - h)
                 y1 = random.randint(0, img.size()[2] - w)
                 if img.size()[0] == 3:
-                    img[0, x1:x1+h, y1:y1+w] = self.mean[0]
-                    img[1, x1:x1+h, y1:y1+w] = self.mean[1]
-                    img[2, x1:x1+h, y1:y1+w] = self.mean[2]
+                    img[0, x1:x1 + h, y1:y1 + w] = self.mean[0]
+                    img[1, x1:x1 + h, y1:y1 + w] = self.mean[1]
+                    img[2, x1:x1 + h, y1:y1 + w] = self.mean[2]
                 else:
-                    img[0, x1:x1+h, y1:y1+w] = self.mean[0]
+                    img[0, x1:x1 + h, y1:y1 + w] = self.mean[0]
                 return img
 
         return img
+
+
+class RandomFlip(object):
+    """
+        Randomly Flip the Tensor
+
+        Reference:
+        probability: The probability that the operation will be performed.
+        dim: The dim that will be flip, 1 is VerticalFlip, 2 is HorizontalFlip
+        https://github.com/pytorch/pytorch/issues/229
+        """
+
+    def __init__(self, probability=0.5, dim=1):
+        self.probability = probability
+        self.dim = dim
+
+    def _check_input(self, tensor):
+        assert tensor.dim() == 3 and tensor.size(0) == 3
+
+    def flip(self, x, dim):
+        indices = [slice(None)] * x.dim()
+        indices[dim] = torch.arange(x.size(dim) - 1, -1, -1,
+                                    dtype=torch.long, device=x.device)
+        return x[tuple(indices)]
+
+    def __call__(self, tensor):
+        if random.uniform(0, 1) > self.probability:
+            return tensor
+        return self.flip(tensor, self.dim)
 
 
 class ColorAugmentation(object):
@@ -95,7 +128,7 @@ class ColorAugmentation(object):
     Reference:
     Krizhevsky et al. ImageNet Classification with Deep ConvolutionalNeural Networks. NIPS 2012.
     """
-    
+
     def __init__(self, p=0.5):
         self.p = p
         self.eig_vec = torch.Tensor([
@@ -119,9 +152,9 @@ class ColorAugmentation(object):
 
 def build_transforms(height,
                      width,
-                     random_erase=False, # use random erasing for data augmentation
-                     color_jitter=False, # randomly change the brightness, contrast and saturation
-                     color_aug=False, # randomly alter the intensities of RGB channels
+                     random_erase=False,  # use random erasing for data augmentation
+                     color_jitter=False,  # randomly change the brightness, contrast and saturation
+                     color_aug=False,  # randomly alter the intensities of RGB channels
                      **kwargs):
     # use imagenet mean and std as default
     # TODO: compute dataset-specific mean and std
@@ -132,10 +165,12 @@ def build_transforms(height,
     # build train transformations
     transform_train = []
     transform_train += [Random2DTranslation(height, width)]
-    transform_train += [RandomHorizontalFlip()]
+
     if color_jitter:
-        transform_train += [ColorJitter(brightness=0.2, contrast=0.15, saturation=0, hue=0)]
+        transform_train += [ColorJitter_cv(brightness=0.2, contrast=0.15, saturation=0, hue=0)]
     transform_train += [ToTensor()]
+    transform_train += [RandomFlip(dim=1)]
+    transform_train += [RandomFlip(dim=2)]
     if color_aug:
         transform_train += [ColorAugmentation()]
     transform_train += [normalize]
@@ -145,7 +180,7 @@ def build_transforms(height,
 
     # build test transformations
     transform_test = Compose([
-        Resize((height, width)),
+        Resize_cv((height, width)),
         ToTensor(),
         normalize,
     ])
