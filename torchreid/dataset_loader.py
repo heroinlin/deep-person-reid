@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import os.path as osp
 import io
+from xzy_alg_sdk.image import ImageTools
 
 import torch
 from torch.utils.data import Dataset
@@ -42,7 +43,8 @@ def read_image(img_path, camid="0"):
             box = process_box(box, img.shape[1], img.shape[0])
             img = img[box[1]:box[3], box[0]:box[2], :]
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            img = cv2.resize(img, dsize=(144, 144))
+            # img = cv2.resize(img, dsize=(144, 144))
+            img = ImageTools().resize(image=img, dest_shape=(144, 144))
             if camid:
                 img = cv2.flip(img, -1)
             got_img = True
@@ -67,7 +69,7 @@ class ImageDataset(Dataset):
 
         if self.transform is not None:
             img = self.transform(img)
-        
+
         return img, pid, camid, img_path[0]
 
 
@@ -100,7 +102,7 @@ class VideoDataset(Dataset):
             indices = np.random.choice(indices, size=self.seq_len, replace=replace)
             # sort indices to keep temporal order (comment it to be order-agnostic)
             indices = np.sort(indices)
-        
+
         elif self.sample_method == 'evenly':
             """
             Evenly sample seq_len items from num items.
@@ -115,14 +117,14 @@ class VideoDataset(Dataset):
                 num_pads = self.seq_len - num
                 indices = np.concatenate([indices, np.ones(num_pads).astype(np.int32)*(num-1)])
             assert len(indices) == self.seq_len
-        
+
         elif self.sample_method == 'all':
             """
             Sample all items, seq_len is useless now and batch_size needs
             to be set to 1.
             """
             indices = np.arange(num)
-        
+
         else:
             raise ValueError('Unknown sample method: {}. Expected one of {}'.format(self.sample_method, self._sample_methods))
 
