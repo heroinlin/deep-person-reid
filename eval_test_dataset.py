@@ -250,7 +250,7 @@ class CTest:
             print("Rank-{:<3}: {:.1%}".format(r, cmc[r - 1]))
         print("------------------")
         result_set = self.iterate_algorithm(dist_mat, q_label)
-        # result_set = self.conditions_eval(dist_mat, q_label)
+        # result_set = self.conditions_eval(dist_mat, q_label, margin=1.2)
         for q in range(len(q_label)):
             # result_set[q, 1] = g_label[q_label.index(result_set[q, 0])]  # 将查询样本ID对应的正确库样本ID计算出来
             result_set[q, 3] = g_label[result_set[q, 2]]
@@ -293,9 +293,9 @@ class CTest:
         q_len = distmat.shape[0]
         res_set = np.zeros((q_len, 4), dtype=np.int)
         for index, condition in enumerate(all_conditions):
+            res_set[index, 0] = new_qlabel[index]
+            res_set[index, 1] = res_set[index, 0]  # 存储查询样本对应的正确库样本的编号
             if condition:
-                res_set[index, 0] = new_qlabel[index]
-                res_set[index, 1] = res_set[index, 0]  # 存储查询样本对应的正确库样本的编号
                 res_set[index, 2] = indices[index, 0]
             else:
                 res_set[index, 2] = -1
@@ -477,9 +477,10 @@ def test(args):
     oddata = ODData(args.annotation_file, args.image_root)
     test_data = oddata.for_test()
 
-    model = models.init_model(name=args.arch, num_classes=10905, loss={'xent', 'htri'}, pretrained=False)
+    model = models.init_model(name=args.arch, num_classes=6090, loss={'xent', 'htri'}, pretrained=False)
+    model = torch.nn.DataParallel(model).to(device) if device == f"cuda:0" else model
+    model = model.module if device == f"cuda:0" else model
     model.load_state_dict(checkpoint['state_dict'])
-    # model = model.module
     model.eval()
 
     total_correct_person_num = 0

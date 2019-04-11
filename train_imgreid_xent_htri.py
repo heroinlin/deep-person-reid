@@ -120,7 +120,7 @@ def main():
                 ranklogger.write(name, epoch + 1, rank1)
             
             save_checkpoint({
-                'state_dict': model.state_dict(),
+                'state_dict': model.module.state_dict() if use_gpu else model.state_dict(),
                 'rank1': rank1,
                 'epoch': epoch + 1,
                 'arch': args.arch,

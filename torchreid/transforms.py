@@ -158,8 +158,10 @@ def build_transforms(height,
                      **kwargs):
     # use imagenet mean and std as default
     # TODO: compute dataset-specific mean and std
-    imagenet_mean = [0.485, 0.456, 0.406]
-    imagenet_std = [0.229, 0.224, 0.225]
+    # imagenet_mean = [0.485, 0.456, 0.406]
+    imagenet_mean = [0.4397258, 0.42576535, 0.42800898]
+    # imagenet_std = [0.229, 0.224, 0.225]
+    imagenet_std = [0.2527191,  0.24644004, 0.24912862]
     normalize = Normalize(mean=imagenet_mean, std=imagenet_std)
 
     # build train transformations
