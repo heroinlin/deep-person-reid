@@ -6,7 +6,7 @@ from torch import nn
 from torch.nn import functional as F
 import torchvision
 import torch.utils.model_zoo as model_zoo
-
+import math
 
 __all__ = ['resnet50mid']
 
@@ -24,6 +24,17 @@ def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=1, bias=False)
+
+
+class MyAdaptiveAvgPool2d(nn.Module):
+    def __init__(self, sz=None):
+        super().__init__()
+
+    def forward(self, x):
+        inp_size = x.size()
+        return F.avg_pool2d(input=x,
+                            ceil_mode=False,
+                            kernel_size=(inp_size[2], inp_size[3]))
 
 
 class BasicBlock(nn.Module):
@@ -124,13 +135,16 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=last_stride)
         
-        self.global_avgpool = nn.AdaptiveAvgPool2d(1)
+        # self.global_avgpool = nn.AdaptiveAvgPool2d(1)
+        self.global_avgpool = nn.AvgPool2d(5)
         assert fc_dims is not None
         self.fc_fusion = self._construct_fc_layer(fc_dims, 512 * block.expansion * 2)
         self.feature_dim += 512 * block.expansion
         self.classifier = nn.Linear(self.feature_dim, num_classes)
-
-        self._init_params()
+        if torch.__version__ < "0.4.0":
+            self._init_params1()
+        else:
+            self._init_params()
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
@@ -177,6 +191,24 @@ class ResNet(nn.Module):
         
         return nn.Sequential(*layers)
 
+    def _init_params1(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))
+                if m.bias is not None:
+                    m.bias.data.zero_()
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+            elif isinstance(m, nn.BatchNorm1d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+            elif isinstance(m, nn.Linear):
+                m.weight.data.normal_(0, 0.01)
+                if m.bias is not None:
+                    m.bias.data.zero_()
+
     def _init_params(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -218,6 +250,7 @@ class ResNet(nn.Module):
         v4ab = self.fc_fusion(v4ab)
         v4c = v4c.view(v4c.size(0), -1)
         v = torch.cat([v4ab, v4c], 1)
+        v = v.view(v.size(0), -1, 1, 1)
 
         if not self.training:
             return v
